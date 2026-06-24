@@ -1,0 +1,108 @@
+language: 'go'
+layer: 'application'
+stack: 'backend'
+
+project:
+  title: 'go-cip-30'
+  description: 'Go library for implementing CIP-30 in web2 backends.'
+  owner: 'cardano-foundation'
+  maintainers:
+    - 'cardano-foundation'
+
+toolchains:
+  default: 'go'
+
+fileGroups:
+  goSources:
+    - '**/*.go'
+    - 'go.mod'
+    - 'go.sum'
+  lintConfig:
+    - '.golangci.yml'
+    - '.prototools'
+    - '.moon/proto/golangci-lint.toml'
+  releaseConfig:
+    - 'release-please-config.json'
+    - '.release-please-manifest.json'
+    - '.github/workflows/release-please.yml'
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  format:
+    command: 'proto run golangci-lint -- fmt --config .golangci.yml --diff'
+    toolchains: ['go']
+    inputs:
+      - '@group(goSources)'
+      - '@group(lintConfig)'
+    options:
+      cache: false
+
+  lint:
+    command: 'proto run golangci-lint -- run --config .golangci.yml ./... --show-stats=false'
+    toolchains: ['go']
+    inputs:
+      - '@group(goSources)'
+      - '@group(lintConfig)'
+    options:
+      cache: false
+
+  build:
+    command: 'go build ./...'
+    toolchains: ['go']
+    inputs:
+      - '@group(goSources)'
+
+  test:
+    command: 'go test ./...'
+    toolchains: ['go']
+    inputs:
+      - '@group(goSources)'
+    options:
+      cache: false
+
+  check:
+    deps:
+      - 'root:format'
+      - 'root:lint'
+      - 'root:build'
+      - 'root:test'
+      - 'docs:build'
+    inputs:
+      - '@group(goSources)'
+      - '@group(lintConfig)'
+      - '@group(releaseConfig)'
+    options:
+      cache: false
+      runInCI: true
+
+  # One-time local setup: clone the upstream CIP-30 reference repos into the
+  # gitignored ref/ folder. Idempotent; each repo is skipped if already present.
+  # Refresh one by deleting its folder under ref/ and re-running.
+  setup-ref:
+    script: |
+      set -e
+      test -d ref/cardano-verify-datasignature || git clone --depth 1 https://github.com/cardano-foundation/cardano-verify-datasignature ref/cardano-verify-datasignature
+      test -d ref/CIPs || git clone --depth 1 https://github.com/cardano-foundation/CIPs ref/CIPs
+    toolchains: ['system']
+    inputs: []
+    options:
+      cache: false
+      runInCI: false
+
+  # Local-only: regenerate the committed CIP-30 functional test fixtures in
+  # testdata/fixtures/ from a fixed throwaway test mnemonic, using cardano-signer
+  # (managed via proto) both to sign and as an independent verification oracle.
+  # CI tests read the committed fixtures, so this task is never run in CI. See
+  # scripts/gen-fixtures.sh for the throwaway-key and anti-circularity notes.
+  gen-fixtures:
+    script: |
+      set -e
+      bash scripts/gen-fixtures.sh
+    toolchains: ['system']
+    inputs: []
+    options:
+      cache: false
+      runInCI: false
