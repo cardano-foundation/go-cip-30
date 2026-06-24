@@ -71,5 +71,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-uv-docs-
 
-      - name: Run Moon CI
-        run: moon ci --summary minimal
+      - name: Run Moon Check
+        run: moon run root:check --summary minimal

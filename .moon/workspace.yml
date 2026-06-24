@@ -24,7 +24,7 @@ projects:
 defaultProject: 'root'
 
 vcs:
-  defaultBranch: 'master'
+  defaultBranch: 'main'
   provider: 'github'
 
 pipeline:
